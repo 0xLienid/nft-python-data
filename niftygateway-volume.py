@@ -2,37 +2,33 @@ import requests
 import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 from joblib import Parallel, delayed
 from ciso8601 import parse_datetime
 import time
+from matplotlib.ticker import FuncFormatter
+
+def millions(x, pos):
+    'The two args are the value and tick position'
+    return '%1.1fM' % (x * 1e-6)
 
 def main():
     tracker = NiftyGatewayVolumeTracker()
 
-    rows = [tracker.get_trades(i) for i in range(1, 1001)]
+    rows = [tracker.get_trades(i) for i in range(1, 3776)]
     trades = pd.DataFrame()
     for row in rows:
         trades = pd.concat([trades, pd.DataFrame(row)])
 
     print(trades)
-    trades["tx_amount"] = (trades["birthingPurchaseAmountInCents"] + trades["saleAmountInCents"]) / 100
+    trades["tx_amount"] = trades["saleAmountInCents"] / 100
 
     weekly_volume = tracker.calc_weekly_volume(trades)
     weekly_volume.sort_values('timestamp')
+    max_amt = 1.5*max(weekly_volume['tx_amount'])
+    weekly_volume.to_csv("niftygateway_weekly_volume.csv")
     print(weekly_volume)
 
-    plt.figure(1)
-
-    fig, ax = plt.subplots()
-    ax.bar(weekly_volume.index, weekly_volume["tx_amount"])
-    plt.xlabel("Date")
-    plt.ylabel("$ Volume")
-    plt.title("NiftyGateway Weekly NFT Volume")
-
-    fig.autofmt_xdate()
-
-    plt.tight_layout()
-    plt.savefig("nifty_daily_volume.png")
 
 class NiftyGatewayVolumeTracker():
     def __init__(self):
@@ -45,22 +41,25 @@ class NiftyGatewayVolumeTracker():
         for j in range(100):
             print(j)
             r = requests.get(self.url.format(i))
-            data = r.json()
-            #print(data)
-            print(data['message'])
+            try:
+                data = r.json()
+                #print(data)
+                print(data['message'])
 
-            if 'limit' in data['message']:
-                time.sleep(5)
+                if 'limit' in data['message']:
+                    time.sleep(5)
+                    continue
+                else:
+                    try:
+                        trades = data['data']['results']
+                        trades = [{'timestamp': t['Timestamp'], 'type': t['Type'], 'id': t['id'], 'birthingPurchaseAmountInCents': t['BirthingPurchaseAmountInCents'], 'saleAmountInCents': t['SaleAmountInCents']} for t in trades if t['BirthingPurchaseAmountInCents'] == 0]
+                        break
+                    except:
+                        trades = data
+                        trades = [{'timestamp': t['Timestamp'], 'type': t['Type'], 'id': t['id'], 'birthingPurchaseAmountInCents': t['BirthingPurchaseAmountInCents'], 'saleAmountInCents': t['SaleAmountInCents']} for t in trades if t['BirthingPurchaseAmountInCents'] == 0]
+                        break
+            except:
                 continue
-            else:
-                try:
-                    trades = data['data']['results']
-                    trades = [{'timestamp': t['Timestamp'], 'type': t['Type'], 'id': t['id'], 'birthingPurchaseAmountInCents': t['BirthingPurchaseAmountInCents'], 'saleAmountInCents': t['SaleAmountInCents']} for t in trades]
-                    break
-                except:
-                    trades = data
-                    trades = [{'timestamp': t['Timestamp'], 'type': t['Type'], 'id': t['id'], 'birthingPurchaseAmountInCents': t['BirthingPurchaseAmountInCents'], 'saleAmountInCents': t['SaleAmountInCents']} for t in trades]
-                    break
 
         return trades
 
