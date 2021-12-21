@@ -4,7 +4,7 @@ import pandas as pd
 from niftygateway_volume.py import get_all_time_vol
 
 app = Flask(__name__)
-app.config["DATABASE_URI"] = "postgres://iqypwtvcfnkjos:dfb71980cff8ba514efaaab0d6e8782529276497afd2fb66e404fc59b250fb83@ec2-54-157-113-118.compute-1.amazonaws.com:5432/d5plm2a3lfhtcl"
+app.config["DATABASE_URI"] = ""
 db = SQLAlchemy(app)
 
 class WeeklyData(db.Model):
