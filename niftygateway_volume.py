@@ -12,6 +12,24 @@ def millions(x, pos):
     'The two args are the value and tick position'
     return '%1.1fM' % (x * 1e-6)
 
+def get_week_vol(start_date, end_date):
+    tracker = NiftyGatewayVolumeTracker()
+    page_nums = tracker.get_page_numbers("day", start_date = start_date, end_date = end_date)
+    if page_nums != "request failed":
+        rows = [tracker.get_trades(i) for i in range(1, page_nums)]
+        trades = pd.DataFrame()
+        for row in rows:
+            trades = pd.concat([trades, pd.DataFrame(row)])
+
+        trades["tx_amount"] = trades["saleAmountInCents"] / 100
+
+        weekly_volume = tracker.calc_weekly_volume(trades)
+        weekly_volume.sort_values('timestamp')
+        return weekly_volume
+
+    return weekly_volume
+
+
 def get_all_time_vol():
     tracker = NiftyGatewayVolumeTracker()
     page_nums = tracker.get_page_numbers("all")
@@ -29,7 +47,6 @@ def get_all_time_vol():
         return weekly_volume
 
     return
-
 
 class NiftyGatewayVolumeTracker():
     def __init__(self):
